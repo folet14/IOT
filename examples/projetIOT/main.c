@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "xtimer.h"
 #include "lpsxxx.h"
 #include "lpsxxx_params.h"
@@ -54,7 +55,7 @@ int main(void)
     semtech_loramac_set_dr(&loramac, 5);
     semtech_loramac_set_adr(&loramac, true);
 
-    
+
     switch(semtech_loramac_join(&loramac,LORAMAC_JOIN_OTAA)){
         case SEMTECH_LORAMAC_DUTYCYCLE_RESTRICTED:
             puts("Cannot join: dutycycle restriction");
@@ -87,24 +88,19 @@ int main(void)
         lpsxxx_disable(&dev);
         int temp_abs = temp / 100;
         temp -= temp_abs * 100;
-        uint8_t pres_bytes[2];
-        uint8_t temp_bytes[2];
-        pres_bytes[0] = (uint8_t)(pres & 0xFF); // Octet de poids faible
-        pres_bytes[1] = (uint8_t)((pres >> 8) & 0xFF); // Octet de poids fort
 
-        temp_bytes[0] = (uint8_t)(temp & 0xFF); // Octet de poids faible
-        temp_bytes[1] = (uint8_t)((temp >> 8) & 0xFF); // Octet de poids fort
 
-// Créer un tableau pour le message complet
-        uint8_t message[4];
-        message[0] = pres_bytes[0];
-        message[1] = pres_bytes[1];
-        message[2] = temp_bytes[0];
-        message[3] = temp_bytes[1];
-
+        // Créer un tableau pour le message complet
+        char message[20];
+        snprintf(message, sizeof(message), "%i:%2i.%02i", pres, temp_abs, temp);
+        //strcat()
+        //itoa(temp, message, 10);
+        //itoa(pres, &message[9], 10);
+        //message[8] = " ";
+        printf("%s\n", message);
 
         // Envoi du message via LoRaWAN
-        switch (semtech_loramac_send(&loramac,message, 4)) {
+        switch (semtech_loramac_send(&loramac,(uint8_t *) message, strlen(message))) {
             case SEMTECH_LORAMAC_NOT_JOINED:
                 puts("Cannot send: not joined");
                 return 1;
@@ -123,7 +119,7 @@ int main(void)
 
             case SEMTECH_LORAMAC_TX_CNF_FAILED:
                 puts("Fail to send: no ACK received");
-                return 1;
+                break;
 
             default:
                 puts("Message sent with success");
